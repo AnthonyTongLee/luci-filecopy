@@ -1,0 +1,18 @@
+install ubuntu
+install packages
+
+git clone https://github.com/openwrt/luci.git
+git checkout luci-0.12
+cd luci
+chmod -R 777 luci
+git checkout 89678917~1 contrib/package/luci/Makefile
+git checkout 89678917~1 modules/admin-full/src/luci-bwc.c
+
+make runuhttpd
+
+# disable caching for faster reloads
+nano ~/luci/host/etc/config
+# find "config 'internal' 'ccache' option 'enable' 1" and set it to "0"
+
+nano ~/luci/host/www/cgi-bin/luci
+# comment out luci.dispatcher.indexcache = ...
