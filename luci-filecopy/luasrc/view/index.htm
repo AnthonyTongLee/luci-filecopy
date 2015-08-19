@@ -1,127 +1,139 @@
 <%#
 -%>
 
-<%-
-require("nixio.fs")
-require("nixio.util")
--%>
-
 <%+header%>
 
 <style><![CDATA[
 	.filecopy-path {padding-left:0.5em; font-style:italic;}
+	.filecopy-entry-dir {font-decoration:underline; color:blue;}
+	.filecopy-entry:hover {background-color:gray;}
+	.filecopy-entry {padding-left: 0.5ex; padding-bottom: 0.5ex;}
+	.filecopy-listing {list-style:none;}
 ]]></style>
+
+<a id="content" name="content"></a>
+
+<form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "copy")%>" class="filecopy-source">
+	<h2>Source</h2>
+	<div id="filecopy-source">
+		<ul class="filecopy-listing" />
+		<input type="text" name="source" value="/mnt" />
+	</div>
+
+	<h2>Destination</h2>
+	<div id="filecopy-destination">
+		<ul class="filecopy-listing" />
+		<input type="text" name="destination" value="/mnt" />
+	</div>
+	
+	<h2>Copy</h2>
+	<div class="cbi-value">
+		<label class="cbi-value-title">Method</label>
+		<div class="cbi-value-field">
+			<label><input type="radio" name="method" value="replace" />Replace</label><br/>
+			<label><input type="radio" name="method" value="skip" />Skip</label><br/>
+			<label><input type="radio" name="method" value="keepboth" checked="checked" />Keep Both</label><br/>
+		</div>
+	</div>
+	
+	<button id="filecopy-docopy">Begin copy</button>
+</form>
+
+
 
 
 <script type="text/javascript"><![CDATA[
 
-	function setPathAndPostForm(formName, path, appendTrailingSlash) {
-		if (appendTrailingSlash && path.slice(-1) !== '/') {
-			path += '/';
-		}
+	function hasClass(element, className) {
+		var paddedClasses = ' '+element.getAttribute('class')+' ';
+		var paddedClass = ' '+className+' ';
+		return paddedClasses.indexOf(paddedClass) >= 0;
+	}
+	
+	
+	function nodeFromString(string) {
+		var div = document.createElement('div');
+		div.innerHTML = string;
+		return div.childNodes[0];
+	}
+	
+	
+	function browseFolder(path, parentElement) {
+		console.log(path);
 		
-		var $newSource = document.getElementById(formName);
-		$newSource.value = path;
-		$newSource.form.submit();
+		var parentElementClosure = parentElement;
+		XHR.get(
+			'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "contentsof")%>'
+			,{ path: path }
+			,function(xhr, json) {
+				console.log(json);
+				parentElementClosure.innerHTML = "";
+				for (var i=0; i<json.entries.length; i++) {
+					var entry = json.entries[i];
+					var nodeHtml = '';
+					if (entry.type === 'reg') {
+						nodeHtml = '<li class="filecopy-entry filecopy-entry-file" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/file.gif" />'+entry.name+'</li>';
+					}
+					else if (entry.type === 'dir') {
+						nodeHtml = '<li class="filecopy-entry filecopy-entry-dir" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/folder.gif" /><a>'+entry.name+'</a></li>';
+					}
+					else {
+						nodeHtml = '<li class="filecopy-entry" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/help.gif" />'+entry.name+'</li>';
+					}
+					
+					parentElementClosure.appendChild(nodeFromString(nodeHtml));
+				}
+			}
+		);
 	}
-
 	
-	function changeSource(path, appendTrailingSlash) {
-		console.log('changeSource '+path);
-		setPathAndPostForm('filecopy-newSource', path, appendTrailingSlash);
-	}
 	
-	function changeDestination(path, appendTrailingSlash) {
-		console.log('changeDestination '+path);
-		setPathAndPostForm('filecopy-newDestination', path, appendTrailingSlash);
-	}
+	var sourceListing = document.querySelector("#filecopy-source .filecopy-listing");
+	var sourceInput = document.querySelector("#filecopy-source input");
+	sourceListing.addEventListener('click', function(e) {
+		if (hasClass(e.target, 'filecopy-entry-dir')) {
+			browseFolder(e.target.dataset.path, sourceListing);
+			sourceInput.value = e.target.dataset.path;
+			e.stopPropagation();
+		}
+	});
+	browseFolder(sourceInput.value, sourceListing);
+	
+	
+	var destinationListing = document.querySelector("#filecopy-destination .filecopy-listing");
+	var destinationInput = document.querySelector("#filecopy-destination input");
+	destinationListing.addEventListener('click', function(e) {
+		if (hasClass(e.target, 'filecopy-entry-dir')) {
+			browseFolder(e.target.dataset.path, destinationListing);
+			destinationInput.value = e.target.dataset.path;
+			e.stopPropagation();
+		}
+	});
+	browseFolder(destinationInput.value, destinationListing);
+	
+	
+	var docopy = document.querySelector("#filecopy-docopy");
+	docopy.addEventListener('click', function(e) {
+		XHR.get(
+			'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "cancopy")%>'
+			,{
+				source: sourceInput.value
+				,destination: destinationInput.value
+				,method: 'uhoh'
+			}
+			,function(xhr, json) {
+				if (json.valid) {
+					docopy.form.submit();
+				}
+				else alert('Cannot copy. Please check source and destination.');
+			}
+		);
+		
+		e.preventDefault();
+		e.stopPropagation();
+	});
 
 ]]></script>
-
-
-<a id="content" name="content"></a>
-<form method="post" action="<%=REQUEST_URI%>" class="filecopy-source">
-	<input type="hidden" name="source" value="<%=source%>" />
-	<input type="hidden" name="destination" value="<%=destination%>" />
-	<input type="hidden" id="filecopy-newSource" name="newSource" value="" />
-	<h2><%=sourceText%><span class="filecopy-path"><%=source%></span></h2>
-	<ul class="filecopy-listing">
-	
-		<% if source ~= sourceUp then
-		-%>
-		<li class="filecopy-entry filecopy-dir">
-			<img src="<%=resource%>/cbi/folder.gif" />
-			<a href="#" onclick="changeSource('<%=sourceUp%>', false)">..</a>
-		</li>
-		<% end -%>
-		
-		<% for _, sourceEntry in luci.util.vspairs(sourceEntries) do
-			local stat = nixio.fs.stat(source..sourceEntry)
-			
-			if stat and stat.type == 'dir' then
-			-%>
-				<li class="filecopy-entry filecopy-dir">
-					<img src="<%=resource%>/cbi/folder.gif" />
-					<a href="#" onclick="changeSource('<%=source..sourceEntry%>', true)"><%=sourceEntry%></a>
-				</li>
-			<% end -%>
-			<% if stat and stat.type == 'reg' then
-			-%>
-				<li class="filecopy-entry filecopy-file">
-					<img src="<%=resource%>/cbi/file.gif" />
-					<a href="#" onclick="changeSource('<%=source..sourceEntry%>', false)"><%=sourceEntry%></a>
-				</li>
-			<% end -%>
-		<% end -%>
-	</ul>
-</form>
-
-<form method="post" action="<%=REQUEST_URI%>" class="filecopy-destination">
-	<input type="hidden" name="source" value="<%=source%>" />
-	<input type="hidden" name="destination" value="<%=destination%>" />
-	<input type="hidden" id="filecopy-newDestination" name="newDestination" value="" />
-	<h2>And put it in <span class="filecopy-path"><%=destination%></span></h2>
-	<ul class="filecopy-listing">
-	
-		<% if destination ~= destinationUp then
-		-%>
-		<li class="filecopy-entry filecopy-dir">
-			<img src="<%=resource%>/cbi/folder.gif" />
-			<a href="#" onclick="changeDestination('<%=destinationUp%>', false)">..</a>
-		</li>
-		<% end -%>
-		
-		<% for _, destinationEntry in luci.util.vspairs(destinationEntries) do
-			local stat = nixio.fs.stat(destination..destinationEntry)
-			
-			if stat and stat.type == 'dir' then
-			-%>
-				<li class="filecopy-entry filecopy-dir">
-					<img src="<%=resource%>/cbi/folder.gif" />
-					<a href="#" onclick="changeDestination('<%=destination..destinationEntry%>', true)"><%=destinationEntry%></a>
-				</li>
-			<% end -%>
-		<% end -%>
-	</ul>
-</form>
-
-
-
-<div class="filecopy-doit">
-	<h2>Will it copy?</h2>
-<% if canCopy then
--%>
-<form method="post" action="<%=copyUrl%>" class="filecopy-copy">
-	<input type="hidden" name="source" value="<%=source%>" />
-	<input type="hidden" name="destination" value="<%=destination%>" />
-	<button>Yes! Do the copy!</button>
-</form>
-<% else
--%>
-<p>Can't copy just yet, maybe check what is being copied, and to where.</p>
-<% end -%>
-</div>
-
 
 
 <%+footer%>
