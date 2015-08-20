@@ -29,27 +29,35 @@ if [ ! -w "$DESTINATION" ]; then
 fi
 
 
+# hold where the destination currently is, in step with the working directory
+DESTINATION_CWD=$DESTINATION
+
 breadth_discover() {
 	if [ -f "$1" ]; then
 		# source is a single file
 		FILE_PATH=$(readlink -f "$i")
-		echo "TODO: copy $FILE_PATH as per $METHOD"
+		echo "TODO: copy $FILE_PATH as per $METHOD into $DESTINATION_CWD"
 		return
 	fi
-
+	
 	# walk into this directory
 	cd "$1"
 	
 	for i in *; do
 		if [ -d "$i" ]; then
-			DIR_PATH=$(readlink -f "$i")
-			echo "TODO: ensure $DIR_PATH exists"
+			local DESTINATION_LAST=$DESTINATION_CWD
+			local DIR_NAME=${i##*/}
+			DESTINATION_CWD="$DESTINATION_CWD/$DIR_NAME"
+			echo "TODO: ensure $DIR_NAME destination folder exists ($DESTINATION_CWD)"
+
 			breadth_discover "$i"
-			# walk back out of this directory
+
+			DESTINATION_CWD=$DESTINATION_LAST
 			cd ..
+			
 		elif [ -f "$i" ]; then
-			FILE_PATH=$(readlink -f "$i")
-			echo "TODO: copy $FILE_PATH $METHOD"
+			local FILE_PATH=$(readlink -f "$i")
+			echo "TODO: copy $FILE_PATH as per $METHOD into $DESTINATION_CWD"
 		fi
 		# ignore non-directory and non-file entries
 	done
