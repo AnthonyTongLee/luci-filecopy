@@ -16,3 +16,9 @@ nano ~/luci/host/etc/config
 
 nano ~/luci/host/www/cgi-bin/luci
 # comment out luci.dispatcher.indexcache = ...
+
+
+
+--
+in development environment, /sbin/noisycopy won't exist, so symlink it yourself:
+sudo ln -s ~/applications/luci-filecopy/dist/sbin/noisycopy /sbin/noisycopy
