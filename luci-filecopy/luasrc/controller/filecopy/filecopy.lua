@@ -1,5 +1,15 @@
 module("luci.controller.filecopy.filecopy", package.seeall)
 
+--http://luci.subsignal.org/api/luci/index.html
+require("luci.dispatcher")
+require("luci.fs")
+require("luci.sys")
+
+--http://luci.subsignal.org/api/nixio/index.html
+require("nixio.fs")
+require("nixio.util")
+
+
 function index()
 	entry({"admin", "services", "filecopy"}, call("handle_index"), _("File Copy"))
 	entry({"admin", "services", "filecopy", "contentsof"}, call("action_contentsof"))
@@ -23,17 +33,13 @@ end
 
 
 function action_contentsof()
-	require("luci.fs")
-	require("nixio.fs")
-	require("nixio.util")
-	
 	local path = luci.http.formvalue("path")
 	
 	local entries = {}
 	if path ~= '/' then
 		table.insert(entries, {
 			name = ".."
-			,path = luci.fs.dirname(path)
+			,path = luci.fs.dirname(path) .. '/'
 			,type = "dir"
 		})
 	end
@@ -66,10 +72,6 @@ end
 
 
 function action_cancopy()
-	require("luci.fs")
-	require("nixio.fs")
-	require("nixio.util")
-	
 	local source = luci.http.formvalue("source")
 	local validSource = false
 	local sourceStat = nixio.fs.stat(source)
@@ -95,29 +97,28 @@ function action_cancopy()
 	end
 	
 	local method = luci.http.formvalue("method")
-	-- don't care
+	local validMethod = true
+	local methods = {backup=1, noclobber=1, update=1, overwrite=1}
+	if methods[method] then
+		validMethod = true
+	end
 	
 	luci.http.prepare_content("application/json")
 	luci.http.write_json({
-		valid = validSource and validDestination
+		valid = validSource and validDestination and validMethod
 	})
 end
 
 
 
 function action_copy()
-	require("luci.fs")
-	require("nixio.fs")
-	require("nixio.util")
-	require("luci.dispatcher")
+	local filepath = "/tmp/filecopy.".. os.date("%Y%m%d%H%M%S")
 	
 	local source = luci.http.formvalue("source")
-	local sourceEntries = {}
 	local sourceStat = nixio.fs.stat(source)
+	local sourceFolder = false
 	if sourceStat.type == "dir" then
-		sourceEntries = nixio.util.consume((nixio.fs.dir(source)))
-	elseif sourceStat.type == "reg" then
-		sourceEntries = { source }
+		sourceFolder = true
 	end
 	
 	local destination = luci.http.formvalue("destination")
@@ -127,7 +128,21 @@ function action_copy()
 	end
 	
 	local method = luci.http.formvalue("method")
-	-- ...
+	
+	local script = "/sbin/noisycopy"
+	if sourceFolder then
+		script = script.." r"
+	end
+	if method == "overwrite" then
+		script = script.." overwrite"
+	end
+	script = script.." \""..source.."\""
+	script = script.." \""..destination.."\""
+	script = script.." >> \""..filepath.."\""
+	script = script.." &"
+	
+	nixio.fs.writefile(filepath, script.."\n\n")
+	luci.sys.exec(script)
 	
 	-- write parameters to log file
 	-- create command to do the copy, append into log file

@@ -9,128 +9,138 @@
 	.filecopy-entry:hover {background-color:gray;}
 	.filecopy-entry {padding-left: 0.5ex; padding-bottom: 0.5ex;}
 	.filecopy-listing {list-style:none;}
+	
+	.cbi-value-field label{padding-right: 1em;}
 ]]></style>
 
 <a id="content" name="content"></a>
 
-<form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "copy")%>" class="filecopy-source">
+<form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "copy")%>" class="filecopy-form">
 	<h2>Source</h2>
 	<div id="filecopy-source">
 		<ul class="filecopy-listing" />
-		<input type="text" name="source" value="/mnt" />
+		<input type="text" name="source" value="/home/ant/.subversion/" readonly="readonly" />
 	</div>
 
 	<h2>Destination</h2>
 	<div id="filecopy-destination">
 		<ul class="filecopy-listing" />
-		<input type="text" name="destination" value="/mnt" />
+		<input type="text" name="destination" value="/home/ant/junk/" readonly="readonly" />
 	</div>
 	
 	<h2>Copy</h2>
 	<div class="cbi-value">
 		<label class="cbi-value-title">Method</label>
 		<div class="cbi-value-field">
-			<label><input type="radio" name="method" value="backup" />Backup</label>Rename any existing file that is in the way<br/>
-			<label><input type="radio" name="method" value="noclobber" />No Clobber</label>Skip existing files<br/>
+			<label><input type="radio" name="method" value="backup" disabled="disabled" />Backup</label>Rename any existing file that is in the way<br/>
+			<label><input type="radio" name="method" value="overwrite" />Overwrite</label>Overwrite existing files<br/>
+			<label><input type="radio" name="method" value="noclobber" disabled="disabled" />No Clobber</label>Skip existing files<br/>
 			<label><input type="radio" name="method" value="update" checked="checked" />Copy where destination does not exist or is older than the source</label><br/>
 		</div>
 	</div>
 	
-	<button id="filecopy-docopy">Begin copy</button>
+	<button id="filecopy-submit">Begin copy</button>
 </form>
 
 
 
 
 <script type="text/javascript"><![CDATA[
+	document.addEventListener("DOMContentLoaded", function(event) {
+	
+		function hasClass(element, className) {
+			var paddedClasses = ' '+element.getAttribute('class')+' ';
+			var paddedClass = ' '+className+' ';
+			return paddedClasses.indexOf(paddedClass) >= 0;
+		}
+		
+		
+		function nodeFromString(string) {
+			var div = document.createElement('div');
+			div.innerHTML = string;
+			return div.childNodes[0];
+		}
+		
+		
+		function browseFolder(path, parentElement) {
+			console.log(path);
+			
+			var parentElementClosure = parentElement;
+			XHR.get(
+				'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "contentsof")%>'
+				,{ path: path }
+				,function(xhr, json) {
+					console.log(json);
+					parentElementClosure.innerHTML = "";
+					for (var i=0; i<json.entries.length; i++) {
+						var entry = json.entries[i];
+						var nodeHtml = '';
+						if (entry.type === 'reg') {
+							nodeHtml = '<li class="filecopy-entry filecopy-entry-file" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/file.gif" />'+entry.name+'</li>';
+						}
+						else if (entry.type === 'dir') {
+							nodeHtml = '<li class="filecopy-entry filecopy-entry-dir" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/folder.gif" /><a>'+entry.name+'</a></li>';
+						}
+						else {
+							nodeHtml = '<li class="filecopy-entry" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/help.gif" />'+entry.name+'</li>';
+						}
+						
+						parentElementClosure.appendChild(nodeFromString(nodeHtml));
+					}
+				}
+			);
+		}
+		
+		var form = document.querySelector("form.filecopy-form");
+		
+		var sourceListing = document.querySelector("#filecopy-source .filecopy-listing");
+		var sourceInput = document.querySelector("#filecopy-source input");
+		sourceListing.addEventListener('click', function(e) {
+			if (hasClass(e.target, 'filecopy-entry-dir')) {
+				browseFolder(e.target.dataset.path, sourceListing);
+				form.elements["source"] = e.target.dataset.path;
+				e.stopPropagation();
+			}
+		});
+		browseFolder(sourceInput.value, sourceListing);
+		
+		
+		var destinationListing = document.querySelector("#filecopy-destination .filecopy-listing");
+		var destinationInput = document.querySelector("#filecopy-destination input");
+		destinationListing.addEventListener('click', function(e) {
+			if (hasClass(e.target, 'filecopy-entry-dir')) {
+				browseFolder(e.target.dataset.path, destinationListing);
+				form.elements["destination"] = e.target.dataset.path;
+				e.stopPropagation();
+			}
+		});
+		browseFolder(destinationInput.value, destinationListing);
+		
+		var submitButton = document.querySelector("#filecopy-submit");
+		submitButton.addEventListener('click', function(e) {
+			e.preventDefault();
 
-	function hasClass(element, className) {
-		var paddedClasses = ' '+element.getAttribute('class')+' ';
-		var paddedClass = ' '+className+' ';
-		return paddedClasses.indexOf(paddedClass) >= 0;
-	}
-	
-	
-	function nodeFromString(string) {
-		var div = document.createElement('div');
-		div.innerHTML = string;
-		return div.childNodes[0];
-	}
-	
-	
-	function browseFolder(path, parentElement) {
-		console.log(path);
-		
-		var parentElementClosure = parentElement;
-		XHR.get(
-			'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "contentsof")%>'
-			,{ path: path }
-			,function(xhr, json) {
-				console.log(json);
-				parentElementClosure.innerHTML = "";
-				for (var i=0; i<json.entries.length; i++) {
-					var entry = json.entries[i];
-					var nodeHtml = '';
-					if (entry.type === 'reg') {
-						nodeHtml = '<li class="filecopy-entry filecopy-entry-file" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/file.gif" />'+entry.name+'</li>';
-					}
-					else if (entry.type === 'dir') {
-						nodeHtml = '<li class="filecopy-entry filecopy-entry-dir" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/folder.gif" /><a>'+entry.name+'</a></li>';
-					}
-					else {
-						nodeHtml = '<li class="filecopy-entry" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/help.gif" />'+entry.name+'</li>';
-					}
-					
-					parentElementClosure.appendChild(nodeFromString(nodeHtml));
+			var method = form.elements["method"].value;
+			var source = form.elements["source"].value;
+			var destination = form.elements["destination"].value;
+			XHR.get(
+				'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "cancopy")%>'
+				,{
+					source: source
+					,destination: destination
+					,method: method
 				}
-			}
-		);
-	}
-	
-	
-	var sourceListing = document.querySelector("#filecopy-source .filecopy-listing");
-	var sourceInput = document.querySelector("#filecopy-source input");
-	sourceListing.addEventListener('click', function(e) {
-		if (hasClass(e.target, 'filecopy-entry-dir')) {
-			browseFolder(e.target.dataset.path, sourceListing);
-			sourceInput.value = e.target.dataset.path;
-			e.stopPropagation();
-		}
-	});
-	browseFolder(sourceInput.value, sourceListing);
-	
-	
-	var destinationListing = document.querySelector("#filecopy-destination .filecopy-listing");
-	var destinationInput = document.querySelector("#filecopy-destination input");
-	destinationListing.addEventListener('click', function(e) {
-		if (hasClass(e.target, 'filecopy-entry-dir')) {
-			browseFolder(e.target.dataset.path, destinationListing);
-			destinationInput.value = e.target.dataset.path;
-			e.stopPropagation();
-		}
-	});
-	browseFolder(destinationInput.value, destinationListing);
-	
-	
-	var docopy = document.querySelector("#filecopy-docopy");
-	docopy.addEventListener('click', function(e) {
-		XHR.get(
-			'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "cancopy")%>'
-			,{
-				source: sourceInput.value
-				,destination: destinationInput.value
-				,method: 'uhoh'
-			}
-			,function(xhr, json) {
-				if (json.valid) {
-					docopy.form.submit();
+				,function(xhr, json) {
+					if (json.valid) {
+						form.submit();
+					}
+					else alert('Cannot copy. Please check source and destination.');
 				}
-				else alert('Cannot copy. Please check source and destination.');
-			}
-		);
-		
-		e.preventDefault();
-		e.stopPropagation();
+			);
+			
+			return false;
+		});
+
 	});
 
 ]]></script>
