@@ -1,5 +1,58 @@
 #!/bin/sh
 
-for i in 10; do
-	echo hi
-done
+# http://cis.stvincent.edu/html/tutorials/unix/bshellref
+# http://www.grymoire.com/Unix/Sh.html
+
+
+if [ $# -ne 3 ]; then
+	echo "noisycopy METHOD SOURCE DESTINATION"
+	echo "methods: todo!"
+	exit 1
+fi
+
+METHOD=$1
+SOURCE=$(readlink -f "$2")
+DESTINATION=$(readlink -f "$3")
+
+#echo "method = $METHOD"
+#echo "source = $SOURCE"
+#echo "destination = $DESTINATION"
+
+if [ ! -r "$SOURCE" ]; then
+	echo "Can't read from the source"
+	exit 2
+fi
+
+if [ ! -w "$DESTINATION" ]; then
+	echo "Can't write to the destination"
+	exit 3
+fi
+
+
+breadth_discover() {
+	if [ -f "$1" ]; then
+		# source is a single file
+		FILE_PATH=$(readlink -f "$i")
+		echo "TODO: copy $FILE_PATH as per $METHOD"
+		return
+	fi
+
+	# walk into this directory
+	cd "$1"
+	
+	for i in *; do
+		if [ -d "$i" ]; then
+			DIR_PATH=$(readlink -f "$i")
+			echo "TODO: ensure $DIR_PATH exists"
+			breadth_discover "$i"
+			# walk back out of this directory
+			cd ..
+		elif [ -f "$i" ]; then
+			FILE_PATH=$(readlink -f "$i")
+			echo "TODO: copy $FILE_PATH $METHOD"
+		fi
+		# ignore non-directory and non-file entries
+	done
+}
+
+breadth_discover $SOURCE
