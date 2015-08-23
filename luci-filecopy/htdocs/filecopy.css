@@ -4,4 +4,4 @@
 .filecopy-entry {padding-left: 0.5ex; padding-bottom: 0.5ex;}
 .filecopy-listing {list-style:none;}
 
-.filecopy-method-label label{font-weight:bold; padding-right: 1em;}
+.filecopy-method-label label{font-weight:bold; padding-right: 1em; display:inline-block;}

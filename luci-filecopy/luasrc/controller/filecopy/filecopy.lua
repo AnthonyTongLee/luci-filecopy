@@ -31,9 +31,13 @@ function action_contentsof()
 	
 	local entries = {}
 	if path ~= '/' then
+		local up = nixio.fs.dirname(path)
+		if up ~= '/' then
+			up = up..'/'
+		end
 		table.insert(entries, {
 			name = ".."
-			,path = nixio.fs.dirname(path)
+			,path = up
 			,type = "dir"
 		})
 	end
@@ -41,8 +45,7 @@ function action_contentsof()
 	local stat = nixio.fs.stat(path)
 	if stat then
 		if stat.type == "dir" then
-			local direntries = nixio.util.consume((nixio.fs.dir(path)))
-			for _, entryName in ipairs(direntries) do
+			for entryName in nixio.fs.dir(path) do
 				local fullDirPath = path..entryName
 				local dirStat = nixio.fs.stat(fullDirPath) or {}
 				if dirStat.type == "dir" then
@@ -51,7 +54,7 @@ function action_contentsof()
 				table.insert(entries, {
 					name = entryName
 					,path = fullDirPath
-					,type = dirStat.type
+					,type = dirStat.type or 'unknown'
 				})
 			end
 		end
@@ -71,7 +74,7 @@ function action_cancopy()
 	local sourceStat = nixio.fs.stat(source)
 	if sourceStat then
 		if sourceStat.type == "dir" then
-			sourceEntries = nixio.util.consume((nixio.fs.dir(source)))
+			sourceEntries = nixio.util.consume(nixio.fs.dir(source))
 			local haveFiles = table.getn(sourceEntries) > 0
 			if haveFiles then
 				validSource = true
@@ -115,6 +118,12 @@ function action_copy()
 	local destinationStat = nixio.fs.stat(destination)
 	if destinationStat.type ~= "dir" then
 		error("destination not a dir")
+	end
+	
+	local destination_subdir = luci.http.formvalue("destination_subdir")
+	if destination_subdir and destination_subdir ~= '' then
+		destination = destination..destination_subdir..'/'
+		nixio.fs.mkdirr(destination)
 	end
 	
 	local method = luci.http.formvalue("method")
