@@ -8,9 +8,23 @@
 
 
 <a id="content" name="content"></a>
-
-Read the log files...Maybe it worked, maybe it didn't!
-
+<%
+if table.getn(results) == 0 then
+-%>
+	<p>No results</p>
+<% else
+	for _,result in ipairs(results) do
+	-%>
+		<div class="filecopy-result">
+			<h2><%=result.fileName%></h2>
+			<pre><code><![CDATA[<%=result.contents%>]]></code></pre>
+			<form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "result_remove")%>">
+			<input type="hidden" name="path" value="<%=result.filePath%>" />
+			<button>Delete result</button>
+			</form>
+		</div>
+	<% end -%>
+<% end -%>
 
 <script type="text/javascript"><![CDATA[
 ]]></script>
