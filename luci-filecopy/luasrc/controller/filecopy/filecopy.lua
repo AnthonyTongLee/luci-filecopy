@@ -15,19 +15,12 @@ function index()
 	entry({"admin", "services", "filecopy", "contentsof"}, call("action_contentsof"))
 	entry({"admin", "services", "filecopy", "cancopy"}, call("action_cancopy"))
 	entry({"admin", "services", "filecopy", "copy"}, call("action_copy"))
-	entry({"admin", "services", "filecopy", "results"}, call("handle_results"), _("Results"))
 end
 
 
 
 function handle_index()
 	luci.template.render("index", {})
-end
-
-
-
-function handle_results()
-	luci.template.render("result", {})
 end
 
 
@@ -116,10 +109,6 @@ function action_copy()
 	
 	local source = luci.http.formvalue("source")
 	local sourceStat = nixio.fs.stat(source)
-	local sourceFolder = false
-	if sourceStat.type == "dir" then
-		sourceFolder = true
-	end
 	
 	local destination = luci.http.formvalue("destination")
 	local destinationStat = nixio.fs.stat(destination)
@@ -129,23 +118,17 @@ function action_copy()
 	
 	local method = luci.http.formvalue("method")
 	
-	local script = "/sbin/noisycopy"
-	if sourceFolder then
-		script = script.." r"
-	end
-	if method == "overwrite" then
-		script = script.." overwrite"
-	end
-	script = script.." \""..source.."\""
-	script = script.." \""..destination.."\""
-	script = script.." >> \""..filepath.."\""
-	script = script.." &"
+	local cmd = "/sbin/noisycopy "..method
+	cmd = cmd.." \""..source.."\""
+	cmd = cmd.." \""..destination.."\""
+	cmd = cmd.." >> \""..filepath.."\""
+	cmd = cmd.." &"
 	
-	nixio.fs.writefile(filepath, script.."\n\n")
-	luci.sys.exec(script)
+	local initialLog = "Copy begins "..os.date("%c").."\n`"..cmd.."`\n\n----\n\n"
 	
-	-- write parameters to log file
-	-- create command to do the copy, append into log file
+	nixio.fs.writefile(filepath, initialLog)
+	luci.sys.exec(cmd)
+	
 	local redirectUrl = luci.dispatcher.build_url("admin/services/filecopy/results")
 	luci.http.redirect(redirectUrl)
 end
