@@ -48,7 +48,7 @@ function handle_results()
 	-- sort by the key (filename) then insert it in reverse so the latest result appears at the top
 	local orderedResults = {}
 	for k,v in luci.util.kspairs(rawResults) do
-		table.insert(orderedResults, 0, v)
+		table.insert(orderedResults, 1, v)
 	end
 	
 	luci.template.render("filecopy/result", {
