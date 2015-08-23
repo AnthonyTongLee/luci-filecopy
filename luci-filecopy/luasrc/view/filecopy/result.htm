@@ -3,6 +3,17 @@
 
 <a id="content" name="content"></a>
 <%
+
+function encodehtml(str)
+	local repl = {
+		["<"] = "&lt;",
+		["&"] = "&amp;"
+	}
+	return string.gsub(str,"[<&]", function(c)
+		return repl[c] or c
+	end)
+end
+
 if table.getn(results) == 0 then
 -%>
 	<p>No results</p>
@@ -11,14 +22,24 @@ if table.getn(results) == 0 then
 	-%>
 		<div class="filecopy-result">
 			<h2><%=result.fileName%></h2>
-			<pre><!--<![CDATA[--><%=result.contents%><!--]]>--></pre>
+			<pre><%=encodehtml(result.contents)%></pre>
 			<form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "result_remove")%>">
-			<input type="hidden" name="path" value="<%=result.filePath%>" />
-			<button class="cbi-button">Delete result</button>
+				<input type="hidden" name="path" value="<%=result.filePath%>" />
+				<button class="cbi-button">Delete result</button>
 			</form>
 		</div>
 	<% end -%>
 <% end -%>
 
+
+<script type="text/javascript">//<![CDATA[
+	{
+		var link = document.createElement("link");
+		link.href = "/filecopy.css";
+		link.type = "text/css";
+		link.rel = "stylesheet";
+		document.getElementsByTagName("head")[0].appendChild(link);
+	}
+//]]></script>
 
 <%+footer%>
