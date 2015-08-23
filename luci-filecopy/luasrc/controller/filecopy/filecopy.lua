@@ -1,8 +1,9 @@
+-- http://www.lua.org/pil/contents.html
+
 module("luci.controller.filecopy.filecopy", package.seeall)
 
 --http://luci.subsignal.org/api/luci/index.html
 require("luci.dispatcher")
-require("luci.fs")
 require("luci.sys")
 
 --http://luci.subsignal.org/api/nixio/index.html
@@ -20,7 +21,7 @@ end
 
 
 function handle_index()
-	luci.template.render("index", {})
+	luci.template.render("filecopy/index", {})
 end
 
 
@@ -32,7 +33,7 @@ function action_contentsof()
 	if path ~= '/' then
 		table.insert(entries, {
 			name = ".."
-			,path = luci.fs.dirname(path) .. '/'
+			,path = nixio.fs.dirname(path)
 			,type = "dir"
 		})
 	end
@@ -124,7 +125,7 @@ function action_copy()
 	cmd = cmd.." >> \""..filepath.."\""
 	cmd = cmd.." &"
 	
-	local initialLog = "Copy begins "..os.date("%c").."\n`"..cmd.."`\n\n----\n\n"
+	local initialLog = "File copy begun "..os.date("%c").."\n"..cmd.."\n\n----\n\n"
 	
 	nixio.fs.writefile(filepath, initialLog)
 	luci.sys.exec(cmd)

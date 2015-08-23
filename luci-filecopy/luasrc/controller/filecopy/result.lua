@@ -1,3 +1,5 @@
+-- http://www.lua.org/pil/contents.html
+
 module("luci.controller.filecopy.result", package.seeall)
 
 --http://luci.subsignal.org/api/luci/index.html
@@ -49,7 +51,7 @@ function handle_results()
 		table.insert(orderedResults, 0, v)
 	end
 	
-	luci.template.render("result", {
+	luci.template.render("filecopy/result", {
 		matchingFiles = matches
 		,results = orderedResults
 	})

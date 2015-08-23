@@ -1,51 +1,39 @@
-<%#
--%>
-
 <%+header%>
-
-<style><![CDATA[
-	.filecopy-path {padding-left:0.5em; font-style:italic;}
-	.filecopy-entry-dir {font-decoration:underline; color:blue;}
-	.filecopy-entry:hover {background-color:gray;}
-	.filecopy-entry {padding-left: 0.5ex; padding-bottom: 0.5ex;}
-	.filecopy-listing {list-style:none;}
-	
-	.cbi-value-field label{padding-right: 1em;}
-]]></style>
+TODO: script to inject filecopy.css into header tag
 
 <a id="content" name="content"></a>
 
 <form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "copy")%>" class="filecopy-form">
 	<h2>Source</h2>
 	<div id="filecopy-source">
-		<ul class="filecopy-listing" />
-		<input type="text" name="source" value="/home/ant/.subversion/" readonly="readonly" />
+		<ul class="filecopy-listing"></ul>
+		<input type="text" name="source" value="/mnt" class="cbi-input-text" />
 	</div>
 
 	<h2>Destination</h2>
 	<div id="filecopy-destination">
-		<ul class="filecopy-listing" />
-		<input type="text" name="destination" value="/home/ant/junk/" readonly="readonly" />
+		<ul class="filecopy-listing"></ul>
+		<input type="text" name="destination" value="/mnt" class="cbi-input-text" />
 	</div>
 	
 	<h2>Copy</h2>
 	<div class="cbi-value">
 		<label class="cbi-value-title">Method</label>
 		<div class="cbi-value-field">
-			<label><input type="radio" name="method" value="backup" disabled="disabled" />Backup</label>Rename any existing file that is in the way<br/>
-			<label><input type="radio" name="method" value="overwrite" checked="checked" />Overwrite</label>Overwrite existing files<br/>
-			<label><input type="radio" name="method" value="noclobber" />No Clobber</label>Skip existing files<br/>
-			<label><input type="radio" name="method" value="update" disabled="disabled" />Copy where destination does not exist or is older than the source</label><br/>
+			<label class="filecopy-method-label"><input type="radio" name="method" value="backup" disabled="disabled" />Backup</label>Rename any existing file that is in the way<br/>
+			<label class="filecopy-method-label"><input type="radio" name="method" value="overwrite" checked="checked" />Overwrite</label>Overwrite existing files<br/>
+			<label class="filecopy-method-label"><input type="radio" name="method" value="noclobber" />No Clobber</label>Skip existing files<br/>
+			<label class="filecopy-method-label"><input type="radio" name="method" value="update" disabled="disabled" />Copy where destination does not exist or is older than the source</label><br/>
 		</div>
 	</div>
 	
-	<button id="filecopy-submit">Begin copy</button>
+	<button id="filecopy-submit" class="cbi-button">Begin copy</button>
 </form>
 
 
 
 
-<script type="text/javascript"><![CDATA[
+<script type="text/javascript">//<![CDATA[
 	document.addEventListener("DOMContentLoaded", function(event) {
 	
 		function hasClass(element, className) {
@@ -91,14 +79,14 @@
 			);
 		}
 		
-		var form = document.querySelector("form.filecopy-form");
+		var form = document.querySelector(".filecopy-form");
 		
 		var sourceListing = document.querySelector("#filecopy-source .filecopy-listing");
 		var sourceInput = document.querySelector("#filecopy-source input");
 		sourceListing.addEventListener('click', function(e) {
 			if (hasClass(e.target, 'filecopy-entry-dir')) {
 				browseFolder(e.target.dataset.path, sourceListing);
-				form.elements["source"] = e.target.dataset.path;
+				sourceInput.value = e.target.dataset.path;
 				e.stopPropagation();
 			}
 		});
@@ -110,7 +98,7 @@
 		destinationListing.addEventListener('click', function(e) {
 			if (hasClass(e.target, 'filecopy-entry-dir')) {
 				browseFolder(e.target.dataset.path, destinationListing);
-				form.elements["destination"] = e.target.dataset.path;
+				destinationInput.value = e.target.dataset.path;
 				e.stopPropagation();
 			}
 		});
@@ -121,8 +109,8 @@
 			e.preventDefault();
 
 			var method = form.elements["method"].value;
-			var source = form.elements["source"].value;
-			var destination = form.elements["destination"].value;
+			var source = sourceInput.value;
+			var destination = destinationInput.value;
 			XHR.get(
 				'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "cancopy")%>'
 				,{
@@ -143,7 +131,7 @@
 
 	});
 
-]]></script>
+//]]></script>
 
 
 <%+footer%>
