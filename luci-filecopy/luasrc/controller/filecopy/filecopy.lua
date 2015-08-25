@@ -134,7 +134,7 @@ function action_copy()
 	cmd = cmd.." >> \""..filepath.."\""
 	cmd = cmd.." &"
 	
-	local initialLog = "File copy begun "..os.date("%c").."\n"..cmd.."\n\n----\n\n"
+	local initialLog = cmd.."\n\n----\n\n"
 	
 	nixio.fs.writefile(filepath, initialLog)
 	luci.sys.exec(cmd)

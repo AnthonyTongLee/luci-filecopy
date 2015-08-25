@@ -6,9 +6,10 @@
 
 if [ $# -ne 3 ]; then
 	echo "noisycopy METHOD SOURCE DESTINATION"
-	echo "methods: todo!"
 	exit 1
 fi
+
+echo "PID = $$"
 
 METHOD=$1
 SOURCE=$(readlink -f "$2")
@@ -34,10 +35,14 @@ if [ $METHOD != "overwrite"  -a  $METHOD != "noclobber" ]; then
 fi
 
 
-echo "Counting files..."
 FILES_DONE=0
+printf "Counting files..."
 FILES_COUNT=$(find $SOURCE -type f | wc -l)
-echo "Files to copy: $FILES_COUNT"
+printf " $FILES_COUNT to copy\n"
+
+
+FILES_BYTES=0
+
 
 # hold where the destination currently is, in step with the working directory
 DESTINATION_CWD=$DESTINATION
@@ -50,43 +55,68 @@ rename_noclash () {
 		DST="$DST-1"
 	done
 	echo "Moving $SRC to $DST as it is in the way"
-	mv $SRC $DST
+	mv "$SRC" "$DST"
 }
 
 
 copyfile () {
 	FILES_DONE=`expr $FILES_DONE + 1`
+	
+	local FILE_BYTES=0
+	local START=0
+	local END=0
+	
 	case $METHOD in
 		overwrite )
-			if [ ! -e $2 ]; then
-				echo "$FILES_DONE/$FILES_COUNT Copy $1 to $2"
-				cp -pf $1 $2
+			if [ ! -e "$2" ]; then
+				printf "$FILES_DONE/$FILES_COUNT Copy to $2"
+				FILE_BYTES=$(ls -ln "$1" | awk '{ print $5 }')
+				START=$(date +%s)
+				cp -pf "$1" "$2"
+				END=$(date +%s)
+				printf " done"
 			else
-				echo "$FILES_DONE/$FILES_COUNT Copy $1 overwriting $2"
-				cp -pf $1 $2
+				printf "$FILES_DONE/$FILES_COUNT Copy to $2 overwriting"
+				FILE_BYTES=$(ls -ln "$1" | awk '{ print $5 }')
+				START=$(date +%s)
+				cp -pf "$1" "$2"
+				END=$(date +%s)
+				printf " done"
 			fi
 			;;
 		noclobber )
-			if [ ! -e $2 ]; then
-				echo "$FILES_DONE/$FILES_COUNT Copy $1 to $2"
-				cp -p $1 $2
+			if [ ! -e "$2" ]; then
+				printf "$FILES_DONE/$FILES_COUNT Copy to $2"
+				FILE_BYTES=$(ls -ln "$1" | awk '{ print $5 }')
+				START=$(date +%s)
+				cp -p "$1" "$2"
+				END=$(date +%s)
+				printf " done"
 			else
-				echo "$FILES_DONE/$FILES_COUNT Skip $1 (no-clobber $2)"
+				printf "$FILES_DONE/$FILES_COUNT No-clobber $2"
 			fi
 			;;
 		* )
-			echo "$FILES_DONE/$FILES_COUNT TODO: copy $1 to $2"
+			printf "$FILES_DONE/$FILES_COUNT TODO: unknown method $METHOD"
 			;;
 	esac
+	
+	FILES_BYTES=`expr $FILES_BYTES + $FILE_BYTES`
+	
+	local SECONDS_TAKEN=`expr $END - $START`
+	if [ $SECONDS_TAKEN -gt 0 ]; then
+		local MBSEC=`expr $FILE_BYTES / 1024 / 1024 / $SECONDS_TAKEN`
+		printf " ($MBSEC MB/sec)"
+	fi
+	printf "\n"
 }
 
 
 breadth_discover() {
 	if [ -f "$1" ]; then
 		# source is a single file
-		local FILE_PATH=$(readlink -f "$i")
-		local FILE_NAME=${FILE_PATH##*/}
-		copyfile $FILE_PATH "$DESTINATION_CWD/$FILE_NAME"
+		local FILE_NAME=$(basename "$1")
+		copyfile "$1" "$DESTINATION_CWD/$FILE_NAME"
 		return
 	fi
 	
@@ -95,7 +125,7 @@ breadth_discover() {
 	
 	for i in *; do
 		if [ -d "$i" ]; then
-			local DIR_NAME=${i##*/}
+			local DIR_NAME=$(basename "$i")
 			local TARGET_DIR="$DESTINATION_CWD/$DIR_NAME"
 			
 			# file is in the way of this folder. Rename the file and keep going
@@ -115,14 +145,16 @@ breadth_discover() {
 			cd ..
 			
 		elif [ -f "$i" ]; then
-			local FILE_PATH=$(readlink -f "$i")
-			local FILE_NAME=${FILE_PATH##*/}
-			copyfile $FILE_PATH "$DESTINATION_CWD/$FILE_NAME"
+			local FILE_NAME=$(basename "$i")
+			copyfile "$i" "$DESTINATION_CWD/$FILE_NAME"
 		fi
 		# ignore non-directory and non-file entries
 	done
 }
 
-breadth_discover $SOURCE
+echo "File copy begun $(date)"
 
-echo "Finished copying $FILES_COUNT files"
+breadth_discover "$SOURCE"
+
+echo "Finished copying $FILES_COUNT files, $FILES_BYTES bytes"
+echo "File copy ended $(date)"
