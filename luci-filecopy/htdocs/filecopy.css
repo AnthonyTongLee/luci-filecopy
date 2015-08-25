@@ -1,7 +1,9 @@
 .filecopy-path {padding-left:0.5em; font-style:italic;}
 .filecopy-entry-dir {font-decoration:underline; color:blue;}
-.filecopy-entry::hover {background-color:gray;}
-.filecopy-entry {padding-left: 0.5ex; padding-bottom: 0.5ex;}
+.filecopy-entry:hover {background-color:gray;}
+.filecopy-entry {padding-left: 0.75ex; padding-bottom: 0.75ex;}
 .filecopy-listing {list-style:none;}
 
 .filecopy-method-label label{font-weight:bold; padding-right: 1em; display:inline-block;}
+
+.filecopy-result-delete {display:inline-block;}
