@@ -56,7 +56,7 @@
 			</div>
 		</fieldset>
 		
-		<button id="filecopy-submit" class="cbi-button">Begin copy</button>
+		<button id="filecopy-submit" class="cbi-button"><img src="<%=resource%>/cbi/save.gif" style="vertical-align:middle"/> Begin copy</button>
 	</fieldset>
 </form>
 
@@ -129,7 +129,7 @@
 			}
 		});
 		sourceListing.addEventListener('click', function(e) {
-			if (hasClass(e.target, 'filecopy-entry-dir')) {
+			if (hasClass(e.target, 'filecopy-entry')) {
 				browseFolder(e.target.dataset.path, sourceListing);
 				sourceInput.value = e.target.dataset.path;
 				e.stopPropagation();
