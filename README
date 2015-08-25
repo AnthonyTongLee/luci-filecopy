@@ -1,0 +1,14 @@
+File copy application for OpenWRT.
+
+Reason for writing this is that it enables my Kingston Mobilelite Wireless
+MLWG2 device to do file copying.
+Out of the box the vendor firmware (and android app) does this through the
+phone, meaning if I disconnect from wifi the copy stops, or if I want to
+keep the phone battery charge!
+
+Hooked into the web admin page under Administration > Services > File Copy.
+
+To deploy, copy luci-filecopy/dist into root and enable execute permission
+for the /sbin/noisycopy script.
+
+Tested with OpenWRT Barrier Breaker r44874 and Firefox 40.0.
