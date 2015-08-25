@@ -1,0 +1,160 @@
+#!/bin/sh
+
+# http://cis.stvincent.edu/html/tutorials/unix/bshellref
+# http://www.grymoire.com/Unix/Sh.html
+
+
+if [ $# -ne 3 ]; then
+	echo "noisycopy METHOD SOURCE DESTINATION"
+	exit 1
+fi
+
+echo "PID = $$"
+
+METHOD=$1
+SOURCE=$(readlink -f "$2")
+DESTINATION=$(readlink -f "$3")
+
+if [ ! -r "$SOURCE" ]; then
+	echo "Can't read from the source: $SOURCE"
+	exit 1
+fi
+
+if [ ! -e "$DESTINATION" ]; then
+	mkdir "$DESTINATION"
+fi
+
+if [ ! -w "$DESTINATION" ]; then
+	echo "Can't write to the destination: $DESTINATION"
+	exit 1
+fi
+
+if [ $METHOD != "overwrite"  -a  $METHOD != "noclobber" ]; then
+	echo "Unknown method: $METHOD"
+	exit 1
+fi
+
+
+FILES_DONE=0
+printf "Counting files..."
+FILES_COUNT=$(find $SOURCE -type f | wc -l)
+printf " $FILES_COUNT to copy\n"
+
+
+FILES_BYTES=0
+
+
+# hold where the destination currently is, in step with the working directory
+DESTINATION_CWD=$DESTINATION
+
+
+rename_noclash () {
+	local SRC=$1
+	local DST=$SRC
+	while [ -e "$DST" ]; do
+		DST="$DST-1"
+	done
+	echo "Moving $SRC to $DST as it is in the way"
+	mv "$SRC" "$DST"
+}
+
+
+copyfile () {
+	FILES_DONE=`expr $FILES_DONE + 1`
+	
+	local FILE_BYTES=0
+	local START=0
+	local END=0
+	
+	case $METHOD in
+		overwrite )
+			if [ ! -e "$2" ]; then
+				printf "$FILES_DONE/$FILES_COUNT Copy to $2"
+				FILE_BYTES=$(ls -ln "$1" | awk '{ print $5 }')
+				START=$(date +%s)
+				cp -pf "$1" "$2"
+				END=$(date +%s)
+				printf " done"
+			else
+				printf "$FILES_DONE/$FILES_COUNT Copy to $2 overwriting"
+				FILE_BYTES=$(ls -ln "$1" | awk '{ print $5 }')
+				START=$(date +%s)
+				cp -pf "$1" "$2"
+				END=$(date +%s)
+				printf " done"
+			fi
+			;;
+		noclobber )
+			if [ ! -e "$2" ]; then
+				printf "$FILES_DONE/$FILES_COUNT Copy to $2"
+				FILE_BYTES=$(ls -ln "$1" | awk '{ print $5 }')
+				START=$(date +%s)
+				cp -p "$1" "$2"
+				END=$(date +%s)
+				printf " done"
+			else
+				printf "$FILES_DONE/$FILES_COUNT No-clobber $2"
+			fi
+			;;
+		* )
+			printf "$FILES_DONE/$FILES_COUNT TODO: unknown method $METHOD"
+			;;
+	esac
+	
+	FILES_BYTES=`expr $FILES_BYTES + $FILE_BYTES`
+	
+	local SECONDS_TAKEN=`expr $END - $START`
+	if [ $SECONDS_TAKEN -gt 0 ]; then
+		local MBSEC=`expr $FILE_BYTES / 1024 / 1024 / $SECONDS_TAKEN`
+		printf " ($MBSEC MB/sec)"
+	fi
+	printf "\n"
+}
+
+
+breadth_discover() {
+	if [ -f "$1" ]; then
+		# source is a single file
+		local FILE_NAME=$(basename "$1")
+		copyfile "$1" "$DESTINATION_CWD/$FILE_NAME"
+		return
+	fi
+	
+	# walk into this directory
+	cd "$1"
+	
+	for i in *; do
+		if [ -d "$i" ]; then
+			local DIR_NAME=$(basename "$i")
+			local TARGET_DIR="$DESTINATION_CWD/$DIR_NAME"
+			
+			# file is in the way of this folder. Rename the file and keep going
+			if [ ! -d "$TARGET_DIR"  -a  -f "$TARGET_DIR" ]; then
+				rename_noclash "$TARGET_DIR"
+			fi
+			
+			if [ ! -e "$TARGET_DIR" ]; then
+				echo "Making $TARGET_DIR"
+				mkdir "$TARGET_DIR"
+			fi
+			
+			local DESTINATION_LAST=$DESTINATION_CWD
+			DESTINATION_CWD="$TARGET_DIR"
+			breadth_discover "$i"
+			DESTINATION_CWD=$DESTINATION_LAST
+			cd ..
+			
+		elif [ -f "$i" ]; then
+			local FILE_NAME=$(basename "$i")
+			copyfile "$i" "$DESTINATION_CWD/$FILE_NAME"
+		fi
+		# ignore non-directory and non-file entries
+	done
+}
+
+echo "File copy begun $(date)"
+
+breadth_discover "$SOURCE"
+
+echo "Finished copying $FILES_COUNT files, $FILES_BYTES bytes"
+echo "File copy ended $(date)"

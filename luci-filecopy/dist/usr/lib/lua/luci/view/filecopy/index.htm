@@ -1,0 +1,190 @@
+<%+header%>
+
+<form method="post" action="<%=luci.dispatcher.build_url("admin", "services", "filecopy", "copy")%>" class="filecopy-form">
+	<fieldset class="cbi-section">
+		<h2><a id="content" name="content">Source</a></h2>
+		<fieldset class="cbi-section-node">
+			<div id="filecopy-source">
+				<ul class="filecopy-listing"></ul>
+				<input type="text" name="source" value="/mnt/" class="cbi-input-text" />
+			</div>
+		</fieldset>
+
+		<h2><a>Destination</a></h2>
+		<fieldset class="cbi-section-node">
+			<div id="filecopy-destination">
+				<ul class="filecopy-listing"></ul>
+				<input type="text" name="destination" value="/mnt/" class="cbi-input-text" />
+			</div>
+		</fieldset>
+		
+		<h2><a>Copy</a></h2>
+		<fieldset class="cbi-section-node">
+			<div class="cbi-value">
+				<label class="cbi-value-title">New Destination Directory</label>
+				<div class="cbi-value-field">
+					<input type="text" name="destination_subdir" class="cbi-input-text" />
+				</div>
+			</div>
+			<div class="cbi-value">
+				<label class="cbi-value-title">Method</label>
+				<div class="cbi-value-field">
+					<input id="filecopy-method-backup" type="radio" name="method" value="backup" disabled="disabled" class="cbi-input-checkbox" /><label>Backup</label>
+					<div class="cbi-value-description">
+						<span class="cbi-value-helpicon"><img src="<%=resource%>/cbi/help.gif" alt="help"/></span>
+						Rename any existing file that is in the way
+					</div><br/>
+					
+					<input id="filecopy-method-overwrite" type="radio" name="method" value="overwrite" checked="checked" class="cbi-input-checkbox" /><label>Overwrite</label>
+					<div class="cbi-value-description">
+						<span class="cbi-value-helpicon"><img src="<%=resource%>/cbi/help.gif" alt="help"/></span>
+						Overwrite existing files
+					</div><br/>
+					
+					<input id="filecopy-method-noclobber" type="radio" name="method" value="noclobber" class="cbi-input-checkbox" /><label>No Clobber</label>
+					<div class="cbi-value-description">
+						<span class="cbi-value-helpicon"><img src="<%=resource%>/cbi/help.gif" alt="help"/></span>
+						Skip existing files
+					</div><br/>
+					
+					<input id="filecopy-method-update" type="radio" name="method" value="update" disabled="disabled" class="cbi-input-checkbox" /><label>Update</label>
+					<div class="cbi-value-description">
+						<span class="cbi-value-helpicon"><img src="<%=resource%>/cbi/help.gif" alt="help"/></span>
+						Copy where destination does not exist or is older than the source
+					</div>
+				</div>
+			</div>
+		</fieldset>
+		
+		<button id="filecopy-submit" class="cbi-button"><img src="<%=resource%>/cbi/save.gif" style="vertical-align:middle"/> Begin copy</button>
+	</fieldset>
+</form>
+
+
+
+
+<script type="text/javascript">//<![CDATA[
+	{
+		var link = document.createElement("link");
+		link.href = "/filecopy.css";
+		link.type = "text/css";
+		link.rel = "stylesheet";
+		document.getElementsByTagName("head")[0].appendChild(link);
+	}
+
+	
+	document.addEventListener("DOMContentLoaded", function(event) {
+	
+		function hasClass(element, className) {
+			var paddedClasses = ' '+element.getAttribute('class')+' ';
+			var paddedClass = ' '+className+' ';
+			return paddedClasses.indexOf(paddedClass) >= 0;
+		}
+		
+		
+		function nodeFromString(string) {
+			var div = document.createElement('div');
+			div.innerHTML = string;
+			return div.childNodes[0];
+		}
+		
+		
+		function browseFolder(path, parentElement) {
+			console.log(path);
+			
+			var parentElementClosure = parentElement;
+			XHR.get(
+				'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "contentsof")%>'
+				,{ path: path }
+				,function(xhr, json) {
+					console.log(json);
+					parentElementClosure.innerHTML = "";
+					for (var i=0; i<json.entries.length; i++) {
+						var entry = json.entries[i];
+						var nodeHtml = '';
+						if (entry.type === 'reg') {
+							nodeHtml = '<li class="filecopy-entry filecopy-entry-file" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/file.gif" />'+entry.name+'</li>';
+						}
+						else if (entry.type === 'dir') {
+							nodeHtml = '<li class="filecopy-entry filecopy-entry-dir" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/folder.gif" /><a>'+entry.name+'</a></li>';
+						}
+						else {
+							nodeHtml = '<li class="filecopy-entry" data-path="'+entry.path+'"><img src="<%=resource%>/cbi/help.gif" />'+entry.name+'</li>';
+						}
+						
+						parentElementClosure.appendChild(nodeFromString(nodeHtml));
+					}
+				}
+			);
+		}
+		
+		var form = document.querySelector(".filecopy-form");
+		
+		var sourceInput = document.querySelector("#filecopy-source input");
+		var sourceListing = document.querySelector("#filecopy-source .filecopy-listing");
+		sourceInput.addEventListener('keypress', function(e) {
+			if (e.keyCode === 13) {
+				e.preventDefault();
+				browseFolder(sourceInput.value, sourceListing);
+			}
+		});
+		sourceListing.addEventListener('click', function(e) {
+			if (hasClass(e.target, 'filecopy-entry')) {
+				browseFolder(e.target.dataset.path, sourceListing);
+				sourceInput.value = e.target.dataset.path;
+				e.stopPropagation();
+			}
+		});
+		browseFolder(sourceInput.value, sourceListing);
+		
+		
+		var destinationInput = document.querySelector("#filecopy-destination input");
+		var destinationListing = document.querySelector("#filecopy-destination .filecopy-listing");
+		destinationInput.addEventListener('keypress', function(e) {
+			if (e.keyCode === 13) {
+				e.preventDefault();
+				browseFolder(destinationInput.value, destinationListing);
+			}
+		});
+		destinationListing.addEventListener('click', function(e) {
+			if (hasClass(e.target, 'filecopy-entry-dir')) {
+				browseFolder(e.target.dataset.path, destinationListing);
+				destinationInput.value = e.target.dataset.path;
+				e.stopPropagation();
+			}
+		});
+		browseFolder(destinationInput.value, destinationListing);
+		
+		var submitButton = document.querySelector("#filecopy-submit");
+		submitButton.addEventListener('click', function(e) {
+			e.preventDefault();
+
+			var method = form.elements["method"].value;
+			var source = sourceInput.value;
+			var destination = destinationInput.value;
+			var destination_subdir = form.elements["destination_subdir"].value;
+			XHR.get(
+				'<%=luci.dispatcher.build_url("admin", "services", "filecopy", "cancopy")%>'
+				,{
+					source: source
+					,destination: destination
+					,method: method
+					,destination_subdir: destination_subdir
+				}
+				,function(xhr, json) {
+					if (json.valid) {
+						form.submit();
+					}
+					else alert('Cannot copy. Please check source and destination.');
+				}
+			);
+			
+			return false;
+		});
+
+	});
+
+//]]></script>
+
+
+<%+footer%>
